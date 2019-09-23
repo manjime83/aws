@@ -36,6 +36,7 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 2, 8]]
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Join ['-', [!Ref ProjectName, !Ref Environment, 'public', 'subnet', 'a']]
@@ -46,6 +47,7 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 2, 8]]
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Join ['-', [!Ref ProjectName, !Ref Environment, 'public', 'subnet', 'b']]
