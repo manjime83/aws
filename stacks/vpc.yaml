@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 
 Parameters:
   ProjectName:
@@ -15,14 +15,14 @@ Resources:
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: !Join ['-', [!Ref ProjectName, !Ref Environment, 'vpc']]
+          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "vpc"]]
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: !Join ['-', [!Ref ProjectName, !Ref Environment, 'igw']]
+          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "igw"]]
 
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -34,23 +34,23 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 2, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ['-', [!Ref ProjectName, !Ref Environment, 'public', 'subnet', 'a']]
+          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "public", "subnet", "a"]]
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 2, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ['-', [!Ref ProjectName, !Ref Environment, 'public', 'subnet', 'b']]
+          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "public", "subnet", "b"]]
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -58,7 +58,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ['-', [!Ref ProjectName, !Ref Environment, 'public', 'rtb']]
+          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "public", "rtb"]]
 
   PublicRouteTableInternetRoute:
     Type: AWS::EC2::Route
@@ -84,4 +84,4 @@ Outputs:
   VPC:
     Value: !Ref VPC
   PublicSubnets:
-    Value: !Join [',', [!Ref PublicSubnetA, !Ref PublicSubnetB]]
+    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB]]
