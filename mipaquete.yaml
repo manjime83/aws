@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: mipaquete
+  Environment:
+    Type: String
+    Default: test
+    AllowedValues:
+      - prod
+      - test
+  Domain:
+    Type: String
+    Default: mipaquete.transadmin.co
+
+Resources:
+  vpc:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+      TemplateURL: stacks/vpc.yaml
+  # app:
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     Parameters:
+  #       ProjectName: !Ref 'AWS::StackName'
+  #       Environment: !Ref Environment
+  #       Domain: !Ref Domain
+  #     TemplateURL: stacks/app.yaml
+
+Outputs:
+  VPC:
+    Value: !GetAtt vpc.Outputs.VPC
+  PublicSubnets:
+    Value: !GetAtt vpc.Outputs.PublicSubnets
+  # OperatorAccessKey:
+  #   Value: !GetAtt app.Outputs.OperatorAccessKey
+  # OperatorSecretKey:
+  #   Value: !GetAtt app.Outputs.OperatorSecretKey
+  # DistributionId:
+  #   Value: !GetAtt app.Outputs.DistributionId
+  # DistributionDomainName:
+  #   Value: !GetAtt app.Outputs.DistributionDomainName
