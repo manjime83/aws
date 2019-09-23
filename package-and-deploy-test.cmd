@@ -1,1 +1,2 @@
- aws cloudformation package --template-file mipaquete.yaml --s3-bucket transadmin.co-cf-templates --output-template-file mipaquete-packaged.yaml && aws cloudformation deploy --template-file mipaquete-packaged.yaml --stack-name mipaquete-test --capabilities CAPABILITY_NAMED_IAM --parameter-overrides ProjectName=mipaquete Environment=test Domain=mipaquete.transadmin.co
+ call aws cloudformation package --template-file mipaquete.yaml --output-template-file mipaquete-packaged.yaml --s3-bucket transadmin.co-cf-templates
+ call aws cloudformation deploy --template-file mipaquete-packaged.yaml --stack-name mipaquete-test --capabilities CAPABILITY_NAMED_IAM --parameter-overrides ProjectName=mipaquete Environment=test Domain=mipaquete.transadmin.co
