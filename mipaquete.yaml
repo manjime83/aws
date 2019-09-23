@@ -37,11 +37,7 @@ Outputs:
     Value: !GetAtt vpc.Outputs.VPC
   PublicSubnets:
     Value: !GetAtt vpc.Outputs.PublicSubnets
-  # OperatorAccessKey:
-  #   Value: !GetAtt app.Outputs.OperatorAccessKey
-  # OperatorSecretKey:
-  #   Value: !GetAtt app.Outputs.OperatorSecretKey
-  # DistributionId:
-  #   Value: !GetAtt app.Outputs.DistributionId
-  # DistributionDomainName:
-  #   Value: !GetAtt app.Outputs.DistributionDomainName
+  DistributionId:
+    Value: !GetAtt app.Outputs.DistributionId
+  WebsiteURL:
+    Value: !GetAtt app.Outputs.WebsiteURL

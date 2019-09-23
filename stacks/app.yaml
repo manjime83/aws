@@ -40,17 +40,8 @@ Resources:
     Properties:
       Bucket: !Ref WebsiteBucket
       PolicyDocument:
+        Version: "2012-10-17"
         Statement:
-          # - Principal:
-          #     AWS: !GetAtt Operator.Arn
-          #   Effect: Allow
-          #   Action:
-          #     - "s3:ListBucket"
-          #     - "s3:PutObject"
-          #     - "s3:DeleteObject"
-          #   Resource:
-          #     - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket]]
-          #     - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
           - Principal: !If
               - IsProd
               - CanonicalUser: !GetAtt OriginAccessIdentity.S3CanonicalUserId
@@ -60,19 +51,7 @@ Resources:
               - "s3:GetObject"
             Resource:
               - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
-  # Operator:
-  #   Type: AWS::IAM::User
-  #   Properties:
-  #     UserName: !Join ["-", [!Ref ProjectName, !Ref Environment]]
-  #     Policies:
-  #       - PolicyName: !Join ["", [!Ref ProjectName, "InvalidateDistribution"]]
-  #         PolicyDocument:
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - "cloudfront:CreateInvalidation"
-  #               Resource:
-  #                 - !Join ["", ["arn:aws:cloudfront::", !Ref "AWS::AccountId", ":distribution/", !Ref CDN]]
+
   SSLCertificate:
     Type: AWS::CertificateManager::Certificate
     Condition: IsProd
@@ -106,18 +85,58 @@ Resources:
         IPV6Enabled: false
         Enabled: true
 
-  DNSRecord: # deleteme
-    Type: AWS::Route53::RecordSet
+  OperatorUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Join ["-", [!Ref ProjectName, !Ref EnvType]]
+      Groups:
+        - !Ref OperatorsGroup
+
+  OperatorsGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, operators]]
+
+  SyncWebsiteBucketPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref ProjectName, bucket, synchronization]]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+            Resource:
+              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket]]
+              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
+      Groups:
+        - !Ref OperatorsGroup
+
+  InvalidationPolicy:
+    Type: AWS::IAM::Policy
     Condition: IsProd
     Properties:
-      HostedZoneName: transadmin.co.
-      Name: !Join ["", [!Ref WebsiteBucket, "."]]
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt CDN.DomainName
-        HostedZoneId: Z2FDTNDATAQYW2
+      PolicyName: !Join ["-", [!Ref ProjectName, cdn, invalidation]]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "cloudfront:CreateInvalidation"
+            Resource:
+              - !Join ["", ["arn:aws:cloudfront::", !Ref "AWS::AccountId", ":distribution/", !Ref CDN]]
+      Groups:
+        - !Ref OperatorsGroup
 
 Outputs:
+  DistributionId:
+    Value: !If
+      - IsProd
+      - !Ref CDN
+      - "N/A"
   WebsiteURL:
     Value: !If
       - IsProd
