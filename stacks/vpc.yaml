@@ -3,7 +3,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
   ProjectName:
     Type: String
-  Environment:
+  EnvType:
     Type: String
 
 Resources:
@@ -15,14 +15,14 @@ Resources:
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "vpc"]]
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "vpc"]]
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "igw"]]
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "igw"]]
 
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -39,7 +39,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "public", "subnet", "a"]]
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "public", "subnet", "a"]]
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
@@ -50,7 +50,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "public", "subnet", "b"]]
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "public", "subnet", "b"]]
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -58,7 +58,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref Environment, "public", "rtb"]]
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "public", "rtb"]]
 
   PublicRouteTableInternetRoute:
     Type: AWS::EC2::Route

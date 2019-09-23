@@ -1,10 +1,10 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 
 Parameters:
   ProjectName:
     Type: String
     Default: mipaquete
-  Environment:
+  EnvType:
     Type: String
     Default: test
     AllowedValues:
@@ -20,16 +20,17 @@ Resources:
     Properties:
       Parameters:
         ProjectName: !Ref ProjectName
-        Environment: !Ref Environment
+        EnvType: !Ref EnvType
       TemplateURL: stacks/vpc.yaml
-  # app:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     Parameters:
-  #       ProjectName: !Ref 'AWS::StackName'
-  #       Environment: !Ref Environment
-  #       Domain: !Ref Domain
-  #     TemplateURL: stacks/app.yaml
+
+  app:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+        EnvType: !Ref EnvType
+        Domain: !Ref Domain
+      TemplateURL: stacks/app.yaml
 
 Outputs:
   VPC:
