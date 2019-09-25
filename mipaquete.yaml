@@ -32,6 +32,17 @@ Resources:
         Domain: !Ref Domain
       TemplateURL: stacks/app.yaml
 
+  api:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+        EnvType: !Ref EnvType
+        Domain: !Ref Domain
+        VPC: !GetAtt vpc.Outputs.VPC
+        PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
+      TemplateURL: stacks/api.yaml
+
 Outputs:
   VPC:
     Value: !GetAtt vpc.Outputs.VPC
