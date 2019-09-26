@@ -7,6 +7,8 @@ Parameters:
     Type: String
   Domain:
     Type: String
+  OperatorsGroup:
+    Type: String
   VPC:
     Type: String
   PublicSubnets:
@@ -62,16 +64,47 @@ Resources:
             ]
           }
 
+  RepositoryAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref ProjectName, repository, access]]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - ecr:GetAuthorizationToken
+            Resource:
+              - "*"
+          - Effect: "Allow"
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetRepositoryPolicy
+              - ecr:DescribeRepositories
+              - ecr:ListImages
+              - ecr:DescribeImages
+              - ecr:BatchGetImage
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+              - ecr:PutImage
+            Resource:
+              - !GetAtt BackendRepository.Arn
+              - !GetAtt APIRepository.Arn
+      Groups:
+        - !Ref OperatorsGroup
+
   BackendLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "ecs/${ProjectName}-${EnvType}/backend"
+      LogGroupName: !Sub "/ecs/${ProjectName}-${EnvType}/backend"
       RetentionInDays: 7
 
   APILogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "ecs/${ProjectName}-${EnvType}/api"
+      LogGroupName: !Sub "/ecs/${ProjectName}-${EnvType}/api"
       RetentionInDays: 7
 
   ExecutionRole:
@@ -174,23 +207,10 @@ Resources:
     Properties:
       ClusterName: !Join ["-", [!Ref ProjectName, !Ref EnvType, cluster]]
 
-  AutoScalingRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Join ["-", [!Ref ProjectName, !Ref EnvType, autoscaling]]
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
-
-  ContainerSecurityGroup:
+  TaskSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, container]]
+      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
       GroupDescription: !Sub "SecurityGroup for ${ProjectName}-${EnvType} Containers"
       VpcId: !Ref VPC
       SecurityGroupIngress:
@@ -224,127 +244,139 @@ Resources:
       SecurityGroups:
         - !Ref LoadBalancerSecurityGroup
       Subnets: !Split [",", !Ref PublicSubnets]
-  # SSLCertificate:
-  #   Type: AWS::CertificateManager::Certificate
-  #   Properties:
-  #     DomainName: !Join [".", [api, !Ref Domain]]
-  #     SubjectAlternativeNames:
-  #       - !Join [".", [api-ecommerce, !Ref Domain]]
-  #     ValidationMethod: DNS
-  # BackendListener:
-  #   Type: AWS::ElasticLoadBalancingV2::Listener
-  #   Properties:
-  #     LoadBalancerArn: !Ref LoadBalancer
-  #     Protocol: HTTPS
-  #     Port: 443
-  #     DefaultActions:
-  #       - Type: forward
-  #         TargetGroupArn: !Ref BackendTargetGroup
-  #     Certificates:
-  #       - CertificateArn: !Ref SSLCertificate
-  #     SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
-  # APIListenerRule:
-  #   Type: AWS::ElasticLoadBalancingV2::ListenerRule
-  #   Properties:
-  #     Actions:
-  #       - Type: forward
-  #         TargetGroupArn: !Ref APITargetGroup
-  #     Conditions:
-  #       - Field: host-header
-  #         HostHeaderConfig:
-  #           Values:
-  #             - !Join [".", [api-ecommerce, !Ref Domain]]
-  #     ListenerArn: !Ref BackendListener
-  #     Priority: 1
-  # BackendTargetGroup:
-  #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
-  #   Properties:
-  #     Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, backend]]
-  #     TargetType: ip
-  #     Protocol: HTTP
-  #     Port: 8080
-  #     VpcId: !Ref VPC
-  #     HealthCheckPath: /api/healthcheck
-  #     HealthyThresholdCount: 5
-  #     UnhealthyThresholdCount: 2
-  #     HealthCheckTimeoutSeconds: 5
-  #     HealthCheckIntervalSeconds: 30
-  #     TargetGroupAttributes:
-  #       - Key: deregistration_delay.timeout_seconds
-  #         Value: "60"
-  # APITargetGroup:
-  #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
-  #   Properties:
-  #     Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, api]]
-  #     TargetType: ip
-  #     Protocol: HTTP
-  #     Port: 3000
-  #     VpcId: !Ref VPC
-  #     HealthCheckPath: /api/healthcheck
-  #     HealthyThresholdCount: 5
-  #     UnhealthyThresholdCount: 2
-  #     HealthCheckTimeoutSeconds: 5
-  #     HealthCheckIntervalSeconds: 30
-  #     TargetGroupAttributes:
-  #       - Key: deregistration_delay.timeout_seconds
-  #         Value: "60"
-  # Service:
-  #   Type: AWS::ECS::Service
-  #   Properties:
-  #     ServiceName: !Join ["-", [!Ref ProjectName, !Ref EnvType, service]]
-  #     Cluster: !Ref Cluster
-  #     TaskDefinition: !Ref TaskDefinition
-  #     DeploymentConfiguration:
-  #       MinimumHealthyPercent: 100
-  #       MaximumPercent: 200
-  #     DesiredCount: 2
-  #     HealthCheckGracePeriodSeconds: 30
-  #     LaunchType: FARGATE
-  #     NetworkConfiguration:
-  #       AwsvpcConfiguration:
-  #         Subnets: !Split [",", !Ref PublicSubnets]
-  #         SecurityGroups:
-  #           - !Ref ContainerSecurityGroup
-  #         AssignPublicIp: ENABLED
-  #     LoadBalancers:
-  #       - ContainerName: !Join ["-", [!Ref ProjectName, backend]]
-  #         ContainerPort: 8080
-  #         TargetGroupArn: !Ref BackendTargetGroup
-  #       - ContainerName: !Join ["-", [!Ref ProjectName, api]]
-  #         ContainerPort: 3000
-  #         TargetGroupArn: !Ref APITargetGroup
-  # AutoScalingTarget:
-  #   Type: AWS::ApplicationAutoScaling::ScalableTarget
-  #   Properties:
-  #     MinCapacity: 2
-  #     MaxCapacity: 4
-  #     ResourceId: !Join ["/", [service, !Ref Cluster, !GetAtt Service.Name]]
-  #     ScalableDimension: ecs:service:DesiredCount
-  #     ServiceNamespace: ecs
-  #     RoleARN: !GetAtt AutoScalingRole.Arn
-  # AutoScalingPolicy:
-  #   Type: AWS::ApplicationAutoScaling::ScalingPolicy
-  #   Properties:
-  #     PolicyName: MiPaqueteAutoScalingPolicy
-  #     PolicyType: TargetTrackingScaling
-  #     ScalingTargetId: !Ref AutoScalingTarget
-  #     TargetTrackingScalingPolicyConfiguration:
-  #       PredefinedMetricSpecification:
-  #         PredefinedMetricType: ECSServiceAverageCPUUtilization
-  #       ScaleInCooldown: 300
-  #       ScaleOutCooldown: 60
-  #       TargetValue: 60
-  # DNSRecord:
-  #   Type: AWS::Route53::RecordSet
-  #   Properties:
-  #     HostedZoneName: transadmin.co.
-  #     Name: mipaquete.transadmin.co.
-  #     Type: A
-  #     AliasTarget:
-  #       DNSName: !GetAtt LoadBalancer.DNSName
-  #       HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
-  #       EvaluateTargetHealth: true
-# Outputs:
-#   Endpoint:
-#     Description: Endpoint
-#     Value: !GetAtt LoadBalancer.DNSName
+
+  SSLCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Join [".", [api, !Ref Domain]]
+      SubjectAlternativeNames:
+        - !Join [".", [api, ecommerce, !Ref Domain]]
+      ValidationMethod: DNS
+
+  BackendListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTPS
+      Port: 443
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref BackendTargetGroup
+      Certificates:
+        - CertificateArn: !Ref SSLCertificate
+      SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
+
+  APIListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref APITargetGroup
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - !Join [".", [api, ecommerce, !Ref Domain]]
+      ListenerArn: !Ref BackendListener
+      Priority: 1
+
+  BackendTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, backend]]
+      TargetType: ip
+      Protocol: HTTP
+      Port: 8080
+      VpcId: !Ref VPC
+      HealthCheckPath: /api/healthcheck
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 20
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "60"
+
+  APITargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, api]]
+      TargetType: ip
+      Protocol: HTTP
+      Port: 3000
+      VpcId: !Ref VPC
+      HealthCheckPath: /api/healthcheck
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 20
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "60"
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Join ["-", [!Ref ProjectName, !Ref EnvType, service]]
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 30
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Split [",", !Ref PublicSubnets]
+          SecurityGroups:
+            - !Ref TaskSecurityGroup
+          AssignPublicIp: ENABLED
+      LoadBalancers:
+        - ContainerName: !Join ["-", [!Ref ProjectName, backend]]
+          ContainerPort: 8080
+          TargetGroupArn: !Ref BackendTargetGroup
+        - ContainerName: !Join ["-", [!Ref ProjectName, api]]
+          ContainerPort: 3000
+          TargetGroupArn: !Ref APITargetGroup
+
+  AutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["-", [!Ref ProjectName, !Ref EnvType, autoscaling]]
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
+
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 6
+      ResourceId: !Join ["/", [service, !Ref Cluster, !GetAtt Service.Name]]
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      RoleARN: !GetAtt AutoScalingRole.Arn
+
+  AutoScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Join ["-", [!Ref ProjectName, !Ref EnvType, autoscaling]]
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        ScaleInCooldown: 180
+        ScaleOutCooldown: 60
+        TargetValue: 60
+
+Outputs:
+  Endpoint:
+    Description: Endpoint
+    Value: !GetAtt LoadBalancer.DNSName

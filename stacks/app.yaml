@@ -27,6 +27,7 @@ Resources:
         - IsProd
         - !Ref "AWS::NoValue"
         - IndexDocument: index.html
+          ErrorDocument: index.html
 
   OriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -142,3 +143,5 @@ Outputs:
       - IsProd
       - !Join ["", ["https://", !GetAtt CDN.DomainName]]
       - !GetAtt WebsiteBucket.WebsiteURL
+  OperatorsGroup:
+    Value: !Ref OperatorsGroup
