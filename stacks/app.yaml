@@ -49,7 +49,7 @@ Resources:
               - AWS: "*"
             Effect: Allow
             Action:
-              - "s3:GetObject"
+              - s3:GetObject
             Resource:
               - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
 
@@ -57,7 +57,7 @@ Resources:
     Type: AWS::CertificateManager::Certificate
     Condition: IsProd
     Properties:
-      DomainName: !Ref WebsiteBucket
+      DomainName: !Join [".", ["*", !Ref Domain]]
       ValidationMethod: DNS
 
   CDN:
@@ -145,3 +145,5 @@ Outputs:
       - !GetAtt WebsiteBucket.WebsiteURL
   OperatorsGroup:
     Value: !Ref OperatorsGroup
+  SSLCertificate:
+    Value: !Ref SSLCertificate

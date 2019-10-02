@@ -7,11 +7,13 @@ Parameters:
     Type: String
   Domain:
     Type: String
+  VPC:
+    Type: AWS::EC2::VPC::Id
+  PublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
   OperatorsGroup:
     Type: String
-  VPC:
-    Type: String
-  PublicSubnets:
+  SSLCertificate:
     Type: String
 
 Conditions:
@@ -27,16 +29,16 @@ Resources:
           {
             "rules": [
               {
-                "rulePriority": 1,
-                "description": "Keep only 10 untagged image, expire all others",
-                "selection": {
-                  "tagStatus": "untagged",
-                  "countType": "imageCountMoreThan",
-                  "countNumber": 10
-                },
                 "action": {
                   "type": "expire"
-                }
+                },
+                "selection": {
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10,
+                  "tagStatus": "untagged"
+                },
+                "description": "Keep only 10 untagged image, expire all others",
+                "rulePriority": 1
               }
             ]
           }
@@ -50,24 +52,24 @@ Resources:
           {
             "rules": [
               {
-                "rulePriority": 1,
-                "description": "Keep only 10 untagged image, expire all others",
-                "selection": {
-                  "tagStatus": "untagged",
-                  "countType": "imageCountMoreThan",
-                  "countNumber": 10
-                },
                 "action": {
                   "type": "expire"
-                }
+                },
+                "selection": {
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10,
+                  "tagStatus": "untagged"
+                },
+                "description": "Keep only 10 untagged image, expire all others",
+                "rulePriority": 1
               }
             ]
           }
 
-  RepositoryAccessPolicy:
+  PutImagePolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: !Join ["-", [!Ref ProjectName, repository, access]]
+      PolicyName: !Join ["-", [!Ref ProjectName, put, image]]
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -121,31 +123,6 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-      # Policies:
-      #   - PolicyName: !Join ["-", [!Ref ProjectName, ecr, permissions]]
-      #     PolicyDocument:
-      #       Version: "2012-10-17"
-      #       Statement:
-      #         - Effect: Allow
-      #           Action:
-      #             - ecr:GetAuthorizationToken
-      #             - ecr:BatchCheckLayerAvailability
-      #             - ecr:GetDownloadUrlForLayer
-      #             - ecr:BatchGetImage
-      #           Resource:
-      #             - !GetAtt BackendRepository.Arn
-      #             - !GetAtt APIRepository.Arn
-      #   - PolicyName: !Join ["-", [!Ref ProjectName, logs, permissions]]
-      #     PolicyDocument:
-      #       Version: "2012-10-17"
-      #       Statement:
-      #         - Effect: Allow
-      #           Action:
-      #             - logs:CreateLogStream
-      #             - logs:PutLogEvents
-      #           Resource:
-      #             - !GetAtt BackendLogGroup.Arn
-      #             - !GetAtt APILogGroup.Arn
 
   TaskRole:
     Type: AWS::IAM::Role
@@ -169,8 +146,8 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
-      Cpu: "256"
-      Memory: "512"
+      Cpu: "512"
+      Memory: "1024"
       ContainerDefinitions:
         - Name: !Join ["-", [!Ref ProjectName, backend]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${BackendRepository}:latest"
@@ -211,7 +188,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
-      GroupDescription: !Sub "SecurityGroup for ${ProjectName}-${EnvType} Containers"
+      GroupDescription: !Sub "SecurityGroup for ${ProjectName}-${EnvType} Task"
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -222,6 +199,9 @@ Resources:
           FromPort: 3000
           ToPort: 3000
           SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
 
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -231,40 +211,44 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
+          FromPort: !If [IsProd, 443, 80]
+          ToPort: !If [IsProd, 443, 80]
           CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, loadbalancer]]
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Condition: IsProd
     Properties:
-      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType]]
+      Name: !Join ["-", [!Ref ProjectName]]
       Scheme: internet-facing
       IpAddressType: ipv4
       SecurityGroups:
         - !Ref LoadBalancerSecurityGroup
-      Subnets: !Split [",", !Ref PublicSubnets]
-
-  SSLCertificate:
-    Type: AWS::CertificateManager::Certificate
-    Properties:
-      DomainName: !Join [".", [api, !Ref Domain]]
-      SubjectAlternativeNames:
-        - !Join [".", [api, ecommerce, !Ref Domain]]
-      ValidationMethod: DNS
+      Subnets: !Ref PublicSubnets
 
   BackendListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref LoadBalancer
-      Protocol: HTTPS
-      Port: 443
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref BackendTargetGroup
-      Certificates:
-        - CertificateArn: !Ref SSLCertificate
-      SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
+    Properties: !If
+        - IsProd
+        - LoadBalancerArn: !Ref LoadBalancer
+          Protocol: HTTPS
+          Port: 443
+          DefaultActions:
+            - Type: forward
+              TargetGroupArn: !Ref BackendTargetGroup
+          Certificates:
+            - CertificateArn: !Ref SSLCertificate
+          SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
+        - LoadBalancerArn: 
+            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer]]
+          Protocol: HTTP
+          Port: 80
+          DefaultActions:
+            - Type: forward
+              TargetGroupArn: !Ref BackendTargetGroup
 
   APIListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -276,7 +260,7 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
-              - !Join [".", [api, ecommerce, !Ref Domain]]
+              - !Join [".", [ecommerce, !Ref Domain]]
       ListenerArn: !Ref BackendListener
       Priority: 1
 
@@ -323,12 +307,11 @@ Resources:
       DeploymentConfiguration:
         MinimumHealthyPercent: 100
         MaximumPercent: 200
-      DesiredCount: 1
-      HealthCheckGracePeriodSeconds: 30
+      DesiredCount: !If [IsProd, 2, 1]
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
-          Subnets: !Split [",", !Ref PublicSubnets]
+          Subnets: !Ref PublicSubnets
           SecurityGroups:
             - !Ref TaskSecurityGroup
           AssignPublicIp: ENABLED
@@ -339,6 +322,21 @@ Resources:
         - ContainerName: !Join ["-", [!Ref ProjectName, api]]
           ContainerPort: 3000
           TargetGroupArn: !Ref APITargetGroup
+
+  UpdateServicePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref ProjectName, update, service]]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - ecs:UpdateService
+            Resource:
+              - !Ref Service
+      Groups:
+        - !Ref OperatorsGroup
 
   AutoScalingRole:
     Type: AWS::IAM::Role
@@ -356,8 +354,8 @@ Resources:
   AutoScalingTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
-      MinCapacity: 1
-      MaxCapacity: 6
+      MinCapacity: !If [IsProd, 2, 1]
+      MaxCapacity: !If [IsProd, 6, 3]
       ResourceId: !Join ["/", [service, !Ref Cluster, !GetAtt Service.Name]]
       ScalableDimension: ecs:service:DesiredCount
       ServiceNamespace: ecs
@@ -366,9 +364,9 @@ Resources:
   AutoScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Join ["-", [!Ref ProjectName, !Ref EnvType, autoscaling]]
-      PolicyType: TargetTrackingScaling
       ScalingTargetId: !Ref AutoScalingTarget
+      PolicyType: TargetTrackingScaling
+      PolicyName: !Join ["-", [!Ref ProjectName, !Ref EnvType, autoscaling]]
       TargetTrackingScalingPolicyConfiguration:
         PredefinedMetricSpecification:
           PredefinedMetricType: ECSServiceAverageCPUUtilization
@@ -379,4 +377,15 @@ Resources:
 Outputs:
   Endpoint:
     Description: Endpoint
-    Value: !GetAtt LoadBalancer.DNSName
+    Value: !If
+      - IsProd
+      - !GetAtt LoadBalancer.DNSName
+      - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, endpoint]]
+    Export: 
+      Name: !Join ["-", [!Ref ProjectName, loadbalancer, endpoint]]
+
+  LoadBalancer:
+    Condition: IsProd
+    Value: !Ref LoadBalancer
+    Export: 
+      Name: !Join ["-", [!Ref ProjectName, loadbalancer]]

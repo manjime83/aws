@@ -39,9 +39,10 @@ Resources:
         ProjectName: !Ref ProjectName
         EnvType: !Ref EnvType
         Domain: !Ref Domain
-        OperatorsGroup: !GetAtt app.Outputs.OperatorsGroup
         VPC: !GetAtt vpc.Outputs.VPC
         PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
+        OperatorsGroup: !GetAtt app.Outputs.OperatorsGroup
+        SSLCertificate: !GetAtt app.Outputs.SSLCertificate
       TemplateURL: stacks/api.yaml
 
 Outputs:
