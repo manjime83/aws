@@ -13,6 +13,8 @@ Parameters:
   Domain:
     Type: String
     Default: mipaquete.transadmin.co
+  SSLCertificate:
+    Type: String
 
 Resources:
   vpc:
@@ -30,20 +32,21 @@ Resources:
         ProjectName: !Ref ProjectName
         EnvType: !Ref EnvType
         Domain: !Ref Domain
+        SSLCertificate: !Ref SSLCertificate
       TemplateURL: stacks/app.yaml
 
-  api:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        ProjectName: !Ref ProjectName
-        EnvType: !Ref EnvType
-        Domain: !Ref Domain
-        VPC: !GetAtt vpc.Outputs.VPC
-        PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
-        OperatorsGroup: !GetAtt app.Outputs.OperatorsGroup
-        SSLCertificate: !GetAtt app.Outputs.SSLCertificate
-      TemplateURL: stacks/api.yaml
+  # api:
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     Parameters:
+  #       ProjectName: !Ref ProjectName
+  #       EnvType: !Ref EnvType
+  #       Domain: !Ref Domain
+  #       VPC: !GetAtt vpc.Outputs.VPC
+  #       PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
+  #       OperatorsGroup: !GetAtt app.Outputs.OperatorsGroup
+  #       SSLCertificate: !GetAtt app.Outputs.SSLCertificate
+  #     TemplateURL: stacks/api.yaml
 
 Outputs:
   VPC:

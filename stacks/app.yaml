@@ -7,6 +7,8 @@ Parameters:
     Type: String
   Domain:
     Type: String
+  SSLCertificate:
+    Type: String
 
 Conditions:
   IsProd: !Equals [!Ref EnvType, prod]
@@ -52,13 +54,6 @@ Resources:
               - s3:GetObject
             Resource:
               - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
-
-  SSLCertificate:
-    Type: AWS::CertificateManager::Certificate
-    Condition: IsProd
-    Properties:
-      DomainName: !Join [".", ["*", !Ref Domain]]
-      ValidationMethod: DNS
 
   CDN:
     Type: AWS::CloudFront::Distribution
