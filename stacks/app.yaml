@@ -7,6 +7,8 @@ Parameters:
     Type: String
   Domain:
     Type: String
+  OperatorsGroup:
+    Type: String
   SSLCertificate:
     Type: String
 
@@ -30,6 +32,24 @@ Resources:
         - !Ref "AWS::NoValue"
         - IndexDocument: index.html
           ErrorDocument: index.html
+
+  SyncWebsiteBucketPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref ProjectName, bucket, sync]]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - s3:ListBucket
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource:
+              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket]]
+              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
+      Groups:
+        - !Ref OperatorsGroup
 
   OriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -81,41 +101,11 @@ Resources:
         IPV6Enabled: false
         Enabled: true
 
-  OperatorUser:
-    Type: AWS::IAM::User
-    Properties:
-      UserName: !Join ["-", [!Ref ProjectName, !Ref EnvType]]
-      Groups:
-        - !Ref OperatorsGroup
-
-  OperatorsGroup:
-    Type: AWS::IAM::Group
-    Properties:
-      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, operators]]
-
-  SyncWebsiteBucketPolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: !Join ["-", [!Ref ProjectName, bucket, synchronization]]
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Action:
-              - s3:ListBucket
-              - s3:PutObject
-              - s3:DeleteObject
-            Resource:
-              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket]]
-              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
-      Groups:
-        - !Ref OperatorsGroup
-
   InvalidationPolicy:
     Type: AWS::IAM::Policy
     Condition: IsProd
     Properties:
-      PolicyName: !Join ["-", [!Ref ProjectName, cdn, invalidation]]
+      PolicyName: !Join ["-", [!Ref ProjectName, create, invalidation]]
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -129,16 +119,10 @@ Resources:
 
 Outputs:
   DistributionId:
-    Value: !If
-      - IsProd
-      - !Ref CDN
-      - "N/A"
+    Condition: IsProd
+    Value: !Ref CDN
   WebsiteURL:
     Value: !If
       - IsProd
       - !Join ["", ["https://", !GetAtt CDN.DomainName]]
       - !GetAtt WebsiteBucket.WebsiteURL
-  OperatorsGroup:
-    Value: !Ref OperatorsGroup
-  SSLCertificate:
-    Value: !Ref SSLCertificate

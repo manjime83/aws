@@ -80,33 +80,23 @@ Resources:
               - "*"
           - Effect: "Allow"
             Action:
-              - ecr:BatchCheckLayerAvailability
               - ecr:GetDownloadUrlForLayer
-              - ecr:GetRepositoryPolicy
-              - ecr:DescribeRepositories
-              - ecr:ListImages
-              - ecr:DescribeImages
               - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+              - ecr:PutImage
               - ecr:InitiateLayerUpload
               - ecr:UploadLayerPart
               - ecr:CompleteLayerUpload
-              - ecr:PutImage
             Resource:
               - !GetAtt BackendRepository.Arn
               - !GetAtt APIRepository.Arn
       Groups:
         - !Ref OperatorsGroup
 
-  BackendLogGroup:
+  LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/ecs/${ProjectName}-${EnvType}/backend"
-      RetentionInDays: 7
-
-  APILogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/ecs/${ProjectName}-${EnvType}/api"
+      LogGroupName: !Sub "/ecs/${ProjectName}-${EnvType}"
       RetentionInDays: 7
 
   ExecutionRole:
@@ -159,9 +149,9 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref BackendLogGroup
+              awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: ecs
+              awslogs-stream-prefix: backend
         - Name: !Join ["-", [!Ref ProjectName, api]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${APIRepository}:latest"
           DependsOn:
@@ -175,33 +165,9 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref APILogGroup
+              awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: ecs
-
-  Cluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: !Join ["-", [!Ref ProjectName, !Ref EnvType, cluster]]
-
-  TaskSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
-      GroupDescription: !Sub "SecurityGroup for ${ProjectName}-${EnvType} Task"
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
-        - IpProtocol: tcp
-          FromPort: 3000
-          ToPort: 3000
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
-      Tags:
-        - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
+              awslogs-stream-prefix: api
 
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -298,8 +264,34 @@ Resources:
         - Key: deregistration_delay.timeout_seconds
           Value: "60"
 
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Join ["-", [!Ref ProjectName, !Ref EnvType, cluster]]
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
+      GroupDescription: !Sub "SecurityGroup for ${ProjectName}-${EnvType} Task"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
+
   Service:
     Type: AWS::ECS::Service
+    DependsOn:
+      - LoadBalancer
     Properties:
       ServiceName: !Join ["-", [!Ref ProjectName, !Ref EnvType, service]]
       Cluster: !Ref Cluster
@@ -341,12 +333,12 @@ Resources:
   AutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Join ["-", [!Ref ProjectName, !Ref EnvType, autoscaling]]
+      RoleName: !Join ["-", [!Ref ProjectName, !Ref EnvType, autoscale]]
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
             Principal:
-              Service: ecs-tasks.amazonaws.com
+              Service: application-autoscaling.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
@@ -377,15 +369,13 @@ Resources:
 Outputs:
   Endpoint:
     Description: Endpoint
-    Value: !If
-      - IsProd
-      - !GetAtt LoadBalancer.DNSName
-      - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, endpoint]]
+    Condition: IsProd
+    Value: !GetAtt LoadBalancer.DNSName
     Export: 
       Name: !Join ["-", [!Ref ProjectName, loadbalancer, endpoint]]
 
   LoadBalancer:
-    Condition: IsProd
     Value: !Ref LoadBalancer
+    Condition: IsProd
     Export: 
       Name: !Join ["-", [!Ref ProjectName, loadbalancer]]

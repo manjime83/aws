@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  ProjectName:
+    Type: String
+  EnvType:
+    Type: String
+
+Conditions:
+  IsProd: !Equals [!Ref EnvType, prod]
+
+Resources:
+  OperatorsGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, operators]]
+
+  OperatorUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Join ["-", [!Ref ProjectName, !Ref EnvType]]
+      Groups:
+        - !Ref OperatorsGroup
+
+Outputs:
+  OperatorsGroup:
+    Value: !Ref OperatorsGroup
