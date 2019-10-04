@@ -12,6 +12,10 @@ Parameters:
     Type: String
   SSLCertificate:
     Type: String
+  MinContainers:
+    Type: Number
+  MaxContainers:
+    Type: Number
 
 Resources:
   vpc:
@@ -52,6 +56,8 @@ Resources:
         PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
         OperatorsGroup: !GetAtt iam.Outputs.OperatorsGroup
         SSLCertificate: !Ref SSLCertificate
+        MinContainers: !Ref MinContainers
+        MaxContainers: !Ref MaxContainers
       TemplateURL: stacks/api.yaml
 
 Outputs:
