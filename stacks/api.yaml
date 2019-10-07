@@ -173,37 +173,12 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: api
 
-  LoadBalancerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, loadbalancer]]
-      GroupDescription: !Sub "SecurityGroup for ${ProjectName}-${EnvType} LoadBalancer"
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: !If [IsProd, 443, 80]
-          ToPort: !If [IsProd, 443, 80]
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, loadbalancer]]
-
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Condition: IsProd
-    Properties:
-      Name: !Join ["-", [!Ref ProjectName]]
-      Scheme: internet-facing
-      IpAddressType: ipv4
-      SecurityGroups:
-        - !Ref LoadBalancerSecurityGroup
-      Subnets: !Ref PublicSubnets
-
   BackendListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: !If
         - IsProd
-        - LoadBalancerArn: !Ref LoadBalancer
+        - LoadBalancerArn:
+            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer]]
           Protocol: HTTPS
           Port: 443
           DefaultActions:
@@ -283,11 +258,13 @@ Resources:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          SourceSecurityGroupId:
+            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, sg]]
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          SourceSecurityGroupId:
+            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, sg]]
       Tags:
         - Key: Name
           Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
@@ -372,11 +349,7 @@ Resources:
         TargetValue: 60
 
 Outputs:
-  Endpoint:
-    Condition: IsProd
-    Value: !GetAtt LoadBalancer.DNSName
-    Export: 
-      Name: !Join ["-", [!Ref ProjectName, loadbalancer, endpoint]]
+
 
   LoadBalancer:
     Condition: IsProd

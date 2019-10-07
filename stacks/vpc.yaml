@@ -3,26 +3,25 @@ AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
   ProjectName:
     Type: String
-  EnvType:
-    Type: String
 
 Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 192.168.0.0/16
+      EnableDnsSupport: true
       EnableDnsHostnames: true
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "vpc"]]
+          Value: !Join ["-", [!Ref ProjectName, vpc]]
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "igw"]]
+          Value: !Join ["-", [!Ref ProjectName, igw]]
 
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -36,9 +35,9 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "public", "rtb"]]
+          Value: !Join ["-", [!Ref ProjectName, public, rtb]]
 
-  PublicRouteTableInternetRoute:
+  InternetGatewayRoute:
     Type: AWS::EC2::Route
     DependsOn: VPCGatewayAttachment
     Properties:
@@ -46,41 +45,41 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  PublicSubnetA:
+  SubnetA:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [0, !GetAZs ""]
-      CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 1, 8]]
+      CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "public", "subnet", "a"]]
+          Value: !Join ["-", [!Ref ProjectName, public, subnet, a]]
 
-  PublicRouteTableAssociationA:
+  RouteTableAssociationA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnetA
+      SubnetId: !Ref SubnetA
       RouteTableId: !Ref PublicRouteTable
 
-  PublicSubnetB:
+  SubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [1, !GetAZs ""]
-      CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 2, 8]]
+      CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "public", "subnet", "b"]]
+          Value: !Join ["-", [!Ref ProjectName, public, subnet, b]]
 
-  PublicRouteTableAssociationB:
+  RouteTableAssociationB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnetB
+      SubnetId: !Ref SubnetB
       RouteTableId: !Ref PublicRouteTable
 
-  PublicSubnetC:
+  SubnetC:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
@@ -89,16 +88,20 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, "public", "subnet", "c"]]
+          Value: !Join ["-", [!Ref ProjectName, public, subnet, c]]
 
-  PublicRouteTableAssociationC:
+  RouteTableAssociationC:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnetC
+      SubnetId: !Ref SubnetC
       RouteTableId: !Ref PublicRouteTable
 
 Outputs:
-  VPC:
+  VpcId:
     Value: !Ref VPC
-  PublicSubnets:
-    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB, !Ref PublicSubnetC]]
+    Export:
+      Name: !Join ["-", [!Ref ProjectName, vpc]]
+  SubnetIds:
+    Value: !Join [",", [!Ref SubnetA, !Ref SubnetB, !Ref SubnetC]]
+    Export:
+      Name: !Join ["-", [!Ref ProjectName, subnets]]

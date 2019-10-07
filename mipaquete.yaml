@@ -12,19 +12,33 @@ Parameters:
     Type: String
   SSLCertificate:
     Type: String
+    Default: ""
   MinContainers:
     Type: Number
   MaxContainers:
     Type: Number
 
+Conditions:
+  IsProd: !Equals [!Ref EnvType, prod]
+
 Resources:
   vpc:
     Type: AWS::CloudFormation::Stack
+    Condition: IsProd
     Properties:
       Parameters:
         ProjectName: !Ref ProjectName
-        EnvType: !Ref EnvType
       TemplateURL: stacks/vpc.yaml
+
+  elb:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsProd
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt vpc.Outputs.VpcId
+        SubnetIds: !GetAtt vpc.Outputs.SubnetIds
+      TemplateURL: stacks/elb.yaml
 
   iam:
     Type: AWS::CloudFormation::Stack
@@ -45,25 +59,30 @@ Resources:
         SSLCertificate: !Ref SSLCertificate
       TemplateURL: stacks/app.yaml
 
-  api:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        ProjectName: !Ref ProjectName
-        EnvType: !Ref EnvType
-        Domain: !Ref Domain
-        VPC: !GetAtt vpc.Outputs.VPC
-        PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
-        OperatorsGroup: !GetAtt iam.Outputs.OperatorsGroup
-        SSLCertificate: !Ref SSLCertificate
-        MinContainers: !Ref MinContainers
-        MaxContainers: !Ref MaxContainers
-      TemplateURL: stacks/api.yaml
+  # api:
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     Parameters:
+  #       ProjectName: !Ref ProjectName
+  #       EnvType: !Ref EnvType
+  #       Domain: !Ref Domain
+  #       VPC: !GetAtt vpc.Outputs.VPC
+  #       PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
+  #       OperatorsGroup: !GetAtt iam.Outputs.OperatorsGroup
+  #       SSLCertificate: !Ref SSLCertificate
+  #       MinContainers: !Ref MinContainers
+  #       MaxContainers: !Ref MaxContainers
+  #     TemplateURL: stacks/api.yaml
 
 Outputs:
-  VPC:
-    Value: !GetAtt vpc.Outputs.VPC
-  PublicSubnets:
-    Value: !GetAtt vpc.Outputs.PublicSubnets
+  VpcId:
+    Condition: IsProd
+    Value: !GetAtt vpc.Outputs.VpcId
+  SubnetIds:
+    Condition: IsProd
+    Value: !GetAtt vpc.Outputs.SubnetIds
+  LoadBalancerURL:
+    Condition: IsProd
+    Value: !GetAtt elb.Outputs.LoadBalancerURL
   WebsiteURL:
     Value: !GetAtt app.Outputs.WebsiteURL
