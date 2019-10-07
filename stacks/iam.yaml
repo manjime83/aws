@@ -6,9 +6,6 @@ Parameters:
   EnvType:
     Type: String
 
-Conditions:
-  IsProd: !Equals [!Ref EnvType, prod]
-
 Resources:
   OperatorsGroup:
     Type: AWS::IAM::Group
