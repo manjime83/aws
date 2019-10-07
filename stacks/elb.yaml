@@ -39,9 +39,14 @@ Resources:
       Subnets: !Ref SubnetIds
       LoadBalancerAttributes:
         - Key: deletion_protection.enabled
-          Value: true
+          Value: "true"
         - Key: routing.http2.enabled
-          Value: false
+          Value: "false"
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Join ["-", [!Ref ProjectName, cluster]]
 
 Outputs:
   LoadBalancer:
@@ -50,7 +55,13 @@ Outputs:
       Name: !Join ["-", [!Ref ProjectName, loadbalancer]]
   LoadBalancerURL:
     Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: !Join ["-", [!Ref ProjectName, loadbalancer, url]]
   LoadBalancerSecurityGroup:
     Value: !Ref LoadBalancerSecurityGroup
     Export:
       Name: !Join ["-", [!Ref ProjectName, loadbalancer, sg]]
+  ECSCluster:
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Join ["-", [!Ref ProjectName, ecs, cluster]]

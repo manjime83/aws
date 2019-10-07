@@ -59,30 +59,47 @@ Resources:
         SSLCertificate: !Ref SSLCertificate
       TemplateURL: stacks/app.yaml
 
-  # api:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     Parameters:
-  #       ProjectName: !Ref ProjectName
-  #       EnvType: !Ref EnvType
-  #       Domain: !Ref Domain
-  #       VPC: !GetAtt vpc.Outputs.VPC
-  #       PublicSubnets: !GetAtt vpc.Outputs.PublicSubnets
-  #       OperatorsGroup: !GetAtt iam.Outputs.OperatorsGroup
-  #       SSLCertificate: !Ref SSLCertificate
-  #       MinContainers: !Ref MinContainers
-  #       MaxContainers: !Ref MaxContainers
-  #     TemplateURL: stacks/api.yaml
+  api:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+        VpcId: !If
+          - IsProd
+          - !GetAtt vpc.Outputs.VpcId
+          - Fn::ImportValue: !Join ["-", [!Ref ProjectName, vpc]]
+        SubnetIds: !If
+          - IsProd
+          - !GetAtt vpc.Outputs.SubnetIds
+          - Fn::ImportValue: !Join ["-", [!Ref ProjectName, subnets]]
+        EnvType: !Ref EnvType
+        Domain: !Ref Domain
+        OperatorsGroup: !GetAtt iam.Outputs.OperatorsGroup
+        SSLCertificate: !Ref SSLCertificate
+        LoadBalancer: !If
+          - IsProd
+          - !GetAtt elb.Outputs.LoadBalancer
+          - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer]]
+        LoadBalancerSecurityGroup: !If
+          - IsProd
+          - !GetAtt elb.Outputs.LoadBalancerSecurityGroup
+          - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, sg]]
+        ECSCluster: !If
+          - IsProd
+          - !GetAtt elb.Outputs.ECSCluster
+          - Fn::ImportValue: !Join ["-", [!Ref ProjectName, ecs, cluster]]
+        MinContainers: !Ref MinContainers
+        MaxContainers: !Ref MaxContainers
+      TemplateURL: stacks/api.yaml
 
 Outputs:
-  VpcId:
-    Condition: IsProd
-    Value: !GetAtt vpc.Outputs.VpcId
-  SubnetIds:
-    Condition: IsProd
-    Value: !GetAtt vpc.Outputs.SubnetIds
   LoadBalancerURL:
-    Condition: IsProd
-    Value: !GetAtt elb.Outputs.LoadBalancerURL
+    Value: !If
+      - IsProd
+      - !GetAtt elb.Outputs.LoadBalancerURL
+      - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, url]]
   WebsiteURL:
     Value: !GetAtt app.Outputs.WebsiteURL
+  WebsiteDistributionId:
+    Condition: IsProd
+    Value: !GetAtt app.Outputs.DistributionId

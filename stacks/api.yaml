@@ -3,17 +3,23 @@ AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
   ProjectName:
     Type: String
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
   EnvType:
     Type: String
   Domain:
     Type: String
-  VPC:
-    Type: AWS::EC2::VPC::Id
-  PublicSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
   OperatorsGroup:
     Type: String
   SSLCertificate:
+    Type: String
+  LoadBalancer:
+    Type: String
+  LoadBalancerSecurityGroup:
+    Type: String
+  ECSCluster:
     Type: String
   MinContainers:
     Type: Number
@@ -24,10 +30,10 @@ Conditions:
   IsProd: !Equals [!Ref EnvType, prod]
 
 Resources:
-  BackendRepository:
+  APIRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub "${ProjectName}-${EnvType}/backend"
+      RepositoryName: !Sub "${ProjectName}-${EnvType}/api"
       LifecyclePolicy:
         LifecyclePolicyText: |
           {
@@ -47,10 +53,10 @@ Resources:
             ]
           }
 
-  APIRepository:
+  EcommerceRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub "${ProjectName}-${EnvType}/api"
+      RepositoryName: !Sub "${ProjectName}-${EnvType}/ecommerce"
       LifecyclePolicy:
         LifecyclePolicyText: |
           {
@@ -92,8 +98,8 @@ Resources:
               - ecr:UploadLayerPart
               - ecr:CompleteLayerUpload
             Resource:
-              - !GetAtt BackendRepository.Arn
               - !GetAtt APIRepository.Arn
+              - !GetAtt EcommerceRepository.Arn
       Groups:
         - !Ref OperatorsGroup
 
@@ -143,8 +149,8 @@ Resources:
       Cpu: "256"
       Memory: "512"
       ContainerDefinitions:
-        - Name: !Join ["-", [!Ref ProjectName, backend]]
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${BackendRepository}:latest"
+        - Name: !Join ["-", [!Ref ProjectName, api]]
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${APIRepository}:latest"
           PortMappings:
             - ContainerPort: 8080
           Environment:
@@ -155,11 +161,11 @@ Resources:
             Options:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: backend
-        - Name: !Join ["-", [!Ref ProjectName, api]]
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${APIRepository}:latest"
+              awslogs-stream-prefix: api
+        - Name: !Join ["-", [!Ref ProjectName, ecommerce]]
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcommerceRepository}:latest"
           DependsOn:
-            - ContainerName: !Join ["-", [!Ref ProjectName, backend]]
+            - ContainerName: !Join ["-", [!Ref ProjectName, api]]
               Condition: START
           PortMappings:
             - ContainerPort: 3000
@@ -171,29 +177,55 @@ Resources:
             Options:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: api
+              awslogs-stream-prefix: ecommerce
 
-  BackendListener:
+  APITargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, api]]
+      TargetType: ip
+      Protocol: HTTP
+      Port: 8080
+      VpcId: !Ref VpcId
+      HealthCheckPath: /api/healthcheck
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 20
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "60"
+
+  EcommerceTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, ecommerce]]
+      TargetType: ip
+      Protocol: HTTP
+      Port: 3000
+      VpcId: !Ref VpcId
+      HealthCheckPath: /api/healthcheck
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 20
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "60"
+
+  DefaultListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties: !If
-        - IsProd
-        - LoadBalancerArn:
-            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer]]
-          Protocol: HTTPS
-          Port: 443
-          DefaultActions:
-            - Type: forward
-              TargetGroupArn: !Ref BackendTargetGroup
-          Certificates:
-            - CertificateArn: !Ref SSLCertificate
-          SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
-        - LoadBalancerArn: 
-            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer]]
-          Protocol: HTTP
-          Port: 80
-          DefaultActions:
-            - Type: forward
-              TargetGroupArn: !Ref BackendTargetGroup
+    Condition: IsProd
+    Properties: 
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTPS
+      Port: 443
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref APITargetGroup
+      Certificates:
+        - CertificateArn: !Ref SSLCertificate
+      SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
  
   APIListenerRule: 
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -205,66 +237,45 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
+              - !Join [".", [api, !Ref Domain]]
+      ListenerArn: !If
+        - IsProd
+        - !Ref DefaultListener
+        - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
+      Priority: !If [IsProd, 1, 3]
+ 
+  EcommerceListenerRule: 
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref EcommerceTargetGroup
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
               - !Join [".", [ecommerce, !Ref Domain]]
-      ListenerArn: !Ref BackendListener
-      Priority: 1
-
-  BackendTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, backend]]
-      TargetType: ip
-      Protocol: HTTP
-      Port: 8080
-      VpcId: !Ref VPC
-      HealthCheckPath: /api/healthcheck
-      HealthyThresholdCount: 3
-      UnhealthyThresholdCount: 2
-      HealthCheckTimeoutSeconds: 5
-      HealthCheckIntervalSeconds: 20
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: "60"
-
-  APITargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, api]]
-      TargetType: ip
-      Protocol: HTTP
-      Port: 3000
-      VpcId: !Ref VPC
-      HealthCheckPath: /api/healthcheck
-      HealthyThresholdCount: 3
-      UnhealthyThresholdCount: 2
-      HealthCheckTimeoutSeconds: 5
-      HealthCheckIntervalSeconds: 20
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: "60"
-
-  Cluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: !Join ["-", [!Ref ProjectName, !Ref EnvType, cluster]]
+      ListenerArn: !If
+        - IsProd
+        - !Ref DefaultListener
+        - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
+      Priority: !If [IsProd, 2, 4]
 
   TaskSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
       GroupDescription: !Sub "SecurityGroup for ${ProjectName}-${EnvType} Task"
-      VpcId: !Ref VPC
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          SourceSecurityGroupId:
-            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, sg]]
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          SourceSecurityGroupId:
-            Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, sg]]
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
       Tags:
         - Key: Name
           Value: !Join ["-", [!Ref ProjectName, !Ref EnvType, task]]
@@ -272,11 +283,11 @@ Resources:
   Service:
     Type: AWS::ECS::Service
     DependsOn: 
-      - BackendListener
       - APIListenerRule
+      - EcommerceListenerRule
     Properties:
       ServiceName: !Join ["-", [!Ref ProjectName, !Ref EnvType, service]]
-      Cluster: !Ref Cluster
+      Cluster: !Ref ECSCluster
       TaskDefinition: !Ref TaskDefinition
       DeploymentConfiguration:
         MinimumHealthyPercent: 100
@@ -285,17 +296,17 @@ Resources:
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
-          Subnets: !Ref PublicSubnets
+          Subnets: !Ref SubnetIds
           SecurityGroups:
             - !Ref TaskSecurityGroup
           AssignPublicIp: ENABLED
       LoadBalancers:
-        - ContainerName: !Join ["-", [!Ref ProjectName, backend]]
-          ContainerPort: 8080
-          TargetGroupArn: !Ref BackendTargetGroup
         - ContainerName: !Join ["-", [!Ref ProjectName, api]]
-          ContainerPort: 3000
+          ContainerPort: 8080
           TargetGroupArn: !Ref APITargetGroup
+        - ContainerName: !Join ["-", [!Ref ProjectName, ecommerce]]
+          ContainerPort: 3000
+          TargetGroupArn: !Ref EcommerceTargetGroup
 
   UpdateServicePolicy:
     Type: AWS::IAM::Policy
@@ -330,7 +341,7 @@ Resources:
     Properties:
       MinCapacity: !Ref MinContainers
       MaxCapacity: !Ref MaxContainers
-      ResourceId: !Join ["/", [service, !Ref Cluster, !GetAtt Service.Name]]
+      ResourceId: !Join ["/", [service, !Ref ECSCluster, !GetAtt Service.Name]]
       ScalableDimension: ecs:service:DesiredCount
       ServiceNamespace: ecs
       RoleARN: !GetAtt AutoScalingRole.Arn
@@ -349,10 +360,8 @@ Resources:
         TargetValue: 60
 
 Outputs:
-
-
-  LoadBalancer:
+  DefaultListener:
     Condition: IsProd
-    Value: !Ref LoadBalancer
+    Value: !Ref DefaultListener
     Export: 
-      Name: !Join ["-", [!Ref ProjectName, loadbalancer]]
+      Name: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
