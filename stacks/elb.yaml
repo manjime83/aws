@@ -38,8 +38,6 @@ Resources:
         - !Ref LoadBalancerSecurityGroup
       Subnets: !Ref SubnetIds
       LoadBalancerAttributes:
-        - Key: deletion_protection.enabled
-          Value: "true"
         - Key: routing.http2.enabled
           Value: "false"
 
