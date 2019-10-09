@@ -6,4 +6,4 @@ aws cloudformation deploy --template-file packaged.yaml --stack-name mipaquete-p
     EnvType=prod \
     Domain=mipaquete.com \
     SSLCertificate=arn:aws:acm:us-east-1:468253634394:certificate/bbc6bb7c-c754-4581-9eb0-a07d96b2b8a6 \
-    MinContainers=2 MaxContainers=4
+    MinContainers=0 MaxContainers=4

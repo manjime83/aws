@@ -90,13 +90,13 @@ Resources:
             QueryString: false
           TargetOriginId: !Join [".", ["s3", "origin"]]
           ViewerProtocolPolicy: redirect-to-https
-        PriceClass: PriceClass_100
+        PriceClass: PriceClass_All
         Aliases:
           - !Ref WebsiteBucket
         ViewerCertificate:
           AcmCertificateArn: !Ref SSLCertificate
           SslSupportMethod: sni-only
-          MinimumProtocolVersion: TLSv1.2_2018
+          MinimumProtocolVersion: TLSv1.1_2016
         DefaultRootObject: index.html
         IPV6Enabled: false
         Enabled: true

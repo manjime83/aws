@@ -22,24 +22,6 @@ Conditions:
   IsProd: !Equals [!Ref EnvType, prod]
 
 Resources:
-  vpc:
-    Type: AWS::CloudFormation::Stack
-    Condition: IsProd
-    Properties:
-      Parameters:
-        ProjectName: !Ref ProjectName
-      TemplateURL: stacks/vpc.yaml
-
-  elb:
-    Type: AWS::CloudFormation::Stack
-    Condition: IsProd
-    Properties:
-      Parameters:
-        ProjectName: !Ref ProjectName
-        VpcId: !GetAtt vpc.Outputs.VpcId
-        SubnetIds: !GetAtt vpc.Outputs.SubnetIds
-      TemplateURL: stacks/elb.yaml
-
   iam:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -58,6 +40,24 @@ Resources:
         OperatorsGroup: !GetAtt iam.Outputs.OperatorsGroup
         SSLCertificate: !Ref SSLCertificate
       TemplateURL: stacks/app.yaml
+      
+  vpc:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsProd
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+      TemplateURL: stacks/vpc.yaml
+
+  elb:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsProd
+    Properties:
+      Parameters:
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt vpc.Outputs.VpcId
+        SubnetIds: !GetAtt vpc.Outputs.SubnetIds
+      TemplateURL: stacks/elb.yaml
 
   api:
     Type: AWS::CloudFormation::Stack

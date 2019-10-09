@@ -242,7 +242,7 @@ Resources:
           TargetGroupArn: !Ref APITargetGroup
       Certificates:
         - CertificateArn: !Ref SSLCertificate
-      SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
+      SslPolicy: ELBSecurityPolicy-TLS-1-1-2017-01
  
   APIListenerRule: 
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -254,7 +254,7 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
-              - !Join [".", [api, !Ref Domain]]
+              - !Join [".", [aws-api, !Ref Domain]]
       ListenerArn: !If
         - IsProd
         - !Ref DefaultListener
@@ -271,7 +271,7 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
-              - !Join [".", [ecommerce, !Ref Domain]]
+              - !Join [".", [aws-ecommerce, !Ref Domain]]
       ListenerArn: !If
         - IsProd
         - !Ref DefaultListener
@@ -317,6 +317,7 @@ Resources:
           SecurityGroups:
             - !Ref TaskSecurityGroup
           AssignPublicIp: ENABLED
+      HealthCheckGracePeriodSeconds: 20
       LoadBalancers:
         - ContainerName: !Join ["-", [!Ref ProjectName, api]]
           ContainerPort: 8080
