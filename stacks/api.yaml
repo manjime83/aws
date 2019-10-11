@@ -377,6 +377,23 @@ Resources:
         ScaleOutCooldown: 60
         TargetValue: 60
 
+  EcsReadOnlyPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref ProjectName, ecs, read, only]]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "ecs:List*"
+              - "ecs:Describe*"
+              - "application-autoscaling:Describe*"
+            Resource:
+              - "*"
+      Groups:
+        - !Ref OperatorsGroup
+
 Outputs:
   DefaultListener:
     Condition: IsProd

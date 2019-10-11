@@ -5,5 +5,5 @@ aws cloudformation deploy --template-file packaged.yaml --stack-name mipaquete-t
     ProjectName=mipaquete \
     EnvType=test \
     Domain=test.mipaquete.com \
-    MinContainers=0 MaxContainers=2
+    MinContainers=1 MaxContainers=2
  
