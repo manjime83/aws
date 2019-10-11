@@ -336,11 +336,8 @@ Resources:
           - Effect: "Allow"
             Action:
               - ecs:UpdateService
-            Resource: !Join
-              - "/"
-              - - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service"
-                - !Ref ECSCluster
-                - !GetAtt Service.Name
+            Resource:
+              - !Ref Service
       Groups:
         - !Ref OperatorsGroup
 
