@@ -28,6 +28,7 @@ Parameters:
 
 Conditions:
   IsProd: !Equals [!Ref EnvType, prod]
+  IsTest: !Equals [!Ref EnvType, test]
 
 Resources:
   APIRepository:
@@ -108,23 +109,6 @@ Resources:
     Properties:
       LogGroupName: !Sub "/ecs/${ProjectName}-${EnvType}"
       RetentionInDays: 7
-
-  # GetLogEventsPolicy:
-  #   Type: AWS::IAM::Policy
-  #   Properties:
-  #     PolicyName: !Join ["-", [!Ref ProjectName, get, log, events]]
-  #     PolicyDocument:
-  #       Version: "2012-10-17"
-  #       Statement:
-  #         - Effect: "Allow"
-  #           Action:
-  #             - "logs:Describe*"
-  #             - "logs:Get*"
-  #             - logs:TestMetricFilter
-  #             - logs:FilterLogEvents
-  #           Resource: "*"
-  #     Groups:
-  #       - !Ref OperatorsGroup
 
   ExecutionRole:
     Type: AWS::IAM::Role
@@ -243,7 +227,16 @@ Resources:
       Certificates:
         - CertificateArn: !Ref SSLCertificate
       SslPolicy: ELBSecurityPolicy-TLS-1-1-2017-01
- 
+
+  ListenerCertificate:
+    Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
+    Condition: IsTest
+    Properties: 
+      ListenerArn:
+        Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
+      Certificates:
+        - CertificateArn: !Ref SSLCertificate
+
   APIListenerRule: 
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:

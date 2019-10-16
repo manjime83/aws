@@ -12,7 +12,6 @@ Parameters:
     Type: String
   SSLCertificate:
     Type: String
-    Default: ""
   MinContainers:
     Type: Number
   MaxContainers:
