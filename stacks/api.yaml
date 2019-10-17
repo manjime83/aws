@@ -247,7 +247,7 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
-              - !Join [".", [aws-api, !Ref Domain]]
+              - !Join [".", [api, !Ref Domain]]
       ListenerArn: !If
         - IsProd
         - !Ref DefaultListener
@@ -264,7 +264,7 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
-              - !Join [".", [aws-ecommerce, !Ref Domain]]
+              - !Join [".", [ecommerce, !Ref Domain]]
       ListenerArn: !If
         - IsProd
         - !Ref DefaultListener
@@ -366,7 +366,7 @@ Resources:
       TargetTrackingScalingPolicyConfiguration:
         PredefinedMetricSpecification:
           PredefinedMetricType: ECSServiceAverageCPUUtilization
-        ScaleInCooldown: 120
+        ScaleInCooldown: 180
         ScaleOutCooldown: 60
         TargetValue: 60
 
