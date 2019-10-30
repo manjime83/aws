@@ -309,7 +309,7 @@ Resources:
         - IsProd
         - !Ref DefaultListener
         - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
-      Priority: !If [IsProd, 1, 10]
+      Priority: !If [IsProd, 10, 20]
  
   EcommerceListenerRule: 
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -326,7 +326,7 @@ Resources:
         - IsProd
         - !Ref DefaultListener
         - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
-      Priority: !If [IsProd, 2, 20]
+      Priority: !If [IsProd, 11, 21]
 
   TccListenerRule: 
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
@@ -343,7 +343,7 @@ Resources:
         - IsProd
         - !Ref DefaultListener
         - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
-      Priority: !If [IsProd, 3, 30]
+      Priority: !If [IsProd, 12, 22]
 
   TaskSecurityGroup:
     Type: AWS::EC2::SecurityGroup
