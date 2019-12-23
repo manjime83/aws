@@ -19,7 +19,10 @@ Resources:
   WebsiteBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Join [".", [app, !Ref Domain]]
+      BucketName: !If
+        - IsProd
+        - !Join [".", [aws-app, !Ref Domain]]
+        - !Join [".", [app, !Ref Domain]]
       PublicAccessBlockConfiguration: !If
         - IsProd
         - BlockPublicAcls: true
@@ -90,7 +93,14 @@ Resources:
             QueryString: false
           TargetOriginId: !Join [".", ["s3", "origin"]]
           ViewerProtocolPolicy: redirect-to-https
-        PriceClass: PriceClass_All
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: "/index.html"
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: "/index.html"
+        PriceClass: PriceClass_100
         Aliases:
           - !Ref WebsiteBucket
         ViewerCertificate:

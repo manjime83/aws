@@ -304,7 +304,10 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
-              - !Join [".", [api, !Ref Domain]]
+              - !If
+                - IsProd
+                - !Join [".", [aws-api, !Ref Domain]]
+                - !Join [".", [api, !Ref Domain]]
       ListenerArn: !If
         - IsProd
         - !Ref DefaultListener
