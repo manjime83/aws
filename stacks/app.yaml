@@ -19,10 +19,7 @@ Resources:
   WebsiteBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !If
-        - IsProd
-        - !Join [".", [aws-app, !Ref Domain]]
-        - !Join [".", [app, !Ref Domain]]
+      BucketName: !Join [".", [app, !Ref Domain]]
       PublicAccessBlockConfiguration: !If
         - IsProd
         - BlockPublicAcls: true
@@ -100,9 +97,10 @@ Resources:
           - ErrorCode: 404
             ResponseCode: 200
             ResponsePagePath: "/index.html"
-        PriceClass: PriceClass_100
+        PriceClass: PriceClass_All
         Aliases:
           - !Ref WebsiteBucket
+          - !Join ["-", ["aws", !Ref WebsiteBucket]]
         ViewerCertificate:
           AcmCertificateArn: !Ref SSLCertificate
           SslSupportMethod: sni-only
