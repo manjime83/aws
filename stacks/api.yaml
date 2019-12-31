@@ -304,15 +304,30 @@ Resources:
         - Field: host-header
           HostHeaderConfig:
             Values:
-              - !If
-                - IsProd
-                - !Join [".", [aws-api, !Ref Domain]]
-                - !Join [".", [api, !Ref Domain]]
+              - !Join [".", [api, !Ref Domain]]
       ListenerArn: !If
         - IsProd
         - !Ref DefaultListener
         - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
       Priority: !If [IsProd, 10, 20]
+
+  APITempListenerRule: 
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: IsProd
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref APITargetGroup
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - !Join [".", [aws-api, !Ref Domain]]
+      ListenerArn: !If
+        - IsProd
+        - !Ref DefaultListener
+        - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
+      Priority: !If [IsProd, 13, 23]
  
   EcommerceListenerRule: 
     Type: AWS::ElasticLoadBalancingV2::ListenerRule

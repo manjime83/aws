@@ -42,12 +42,17 @@ Resources:
         Statement:
           - Effect: "Allow"
             Action:
-              - s3:ListBucket
-              - s3:PutObject
-              - s3:DeleteObject
+              - s3:GetObject*
+              - s3:PutObject*
+              - s3:DeleteObject*
+            Resource:
+              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
+          - Effect: "Allow"
+            Action:
+              - s3:ListBucket*
+              - s3:GetBucket*
             Resource:
               - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket]]
-              - !Join ["", ["arn:aws:s3:::", !Ref WebsiteBucket, "/*"]]
       Groups:
         - !Ref OperatorsGroup
 
