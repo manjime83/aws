@@ -12,7 +12,7 @@ Parameters:
     Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
   InstanceType:
     Type: String
-    Default: t2.micro # t3.medium
+    Default: t3.small
 
 Resources:
   LoadBalancerSecurityGroup:
@@ -60,28 +60,18 @@ Resources:
     Properties:
       VPCZoneIdentifier: !Ref SubnetIds
       LaunchConfigurationName: !Ref ECSInstanceLaunchConfiguration
-      MinSize: "1"
+      MinSize: "3"
       MaxSize: "3"
-      DesiredCapacity: "1"
+      DesiredCapacity: "3"
       MetricsCollection:
         - Granularity: 1Minute
     CreationPolicy:
       ResourceSignal:
-        Count: "1"
+        Count: "3"
         Timeout: PT15M
     UpdatePolicy:
       AutoScalingReplacingUpdate:
         WillReplace: true
-
-  ECSAverageCPUPolicy:
-    Type: AWS::AutoScaling::ScalingPolicy
-    Properties:
-      AutoScalingGroupName: !Ref ECSAutoScalingGroup
-      PolicyType: TargetTrackingScaling
-      TargetTrackingConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: ASGAverageCPUUtilization
-        TargetValue: 50
 
   ECSInstanceLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
