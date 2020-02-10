@@ -5,8 +5,6 @@ Parameters:
     Type: String
   VpcId:
     Type: AWS::EC2::VPC::Id
-  SubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
   EnvType:
     Type: String
   Domain:
@@ -169,10 +167,10 @@ Resources:
       RequiresCompatibilities:
         - EC2
       TaskRoleArn: !GetAtt TaskRole.Arn
-      NetworkMode: host
+      NetworkMode: bridge
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
-      Cpu: "2048"
-      Memory: "1955"
+      Cpu: "1024"
+      Memory: "977"
       ContainerDefinitions:
         - Name: !Join ["-", [!Ref ProjectName, api]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${APIRepository}:latest"

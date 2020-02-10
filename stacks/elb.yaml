@@ -45,7 +45,7 @@ Resources:
         - Key: deletion_protection.enabled
           Value: "true"
         - Key: idle_timeout.timeout_seconds
-          Value: "60"
+          Value: "120"
         - Key: access_logs.s3.enabled
           Value: "false"
 
@@ -60,14 +60,14 @@ Resources:
     Properties:
       VPCZoneIdentifier: !Ref SubnetIds
       LaunchConfigurationName: !Ref ECSInstanceLaunchConfiguration
-      MinSize: "3"
-      MaxSize: "3"
-      DesiredCapacity: "3"
+      MinSize: "2"
+      MaxSize: "2"
+      DesiredCapacity: "2"
       MetricsCollection:
         - Granularity: 1Minute
     CreationPolicy:
       ResourceSignal:
-        Count: "3"
+        Count: "2"
         Timeout: PT15M
     UpdatePolicy:
       AutoScalingReplacingUpdate:

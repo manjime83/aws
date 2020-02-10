@@ -67,10 +67,6 @@ Resources:
           - IsProd
           - !GetAtt vpc.Outputs.VpcId
           - Fn::ImportValue: !Join ["-", [!Ref ProjectName, vpc]]
-        SubnetIds: !If
-          - IsProd
-          - !GetAtt vpc.Outputs.SubnetIds
-          - Fn::ImportValue: !Join ["-", [!Ref ProjectName, subnets]]
         EnvType: !Ref EnvType
         Domain: !Ref Domain
         OperatorsGroup: !GetAtt iam.Outputs.OperatorsGroup
