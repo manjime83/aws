@@ -169,11 +169,12 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       NetworkMode: bridge
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
-      Cpu: "1024"
-      Memory: "977"
+      # Cpu: "1024"
+      # Memory: "977"
       ContainerDefinitions:
         - Name: !Join ["-", [!Ref ProjectName, api]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${APIRepository}:latest"
+          MemoryReservation: 448
           PortMappings:
             - ContainerPort: 8080
           Environment:
@@ -187,6 +188,7 @@ Resources:
               awslogs-stream-prefix: api
         - Name: !Join ["-", [!Ref ProjectName, ecommerce]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcommerceRepository}:latest"
+          MemoryReservation: 192
           DependsOn:
             - ContainerName: !Join ["-", [!Ref ProjectName, api]]
               Condition: START
@@ -203,6 +205,7 @@ Resources:
               awslogs-stream-prefix: ecommerce
         - Name: !Join ["-", [!Ref ProjectName, tcc]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${TccRepository}:latest"
+          MemoryReservation: 192
           DependsOn:
             - ContainerName: !Join ["-", [!Ref ProjectName, api]]
               Condition: START
