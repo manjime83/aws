@@ -7,6 +7,12 @@ Parameters:
     Type: AWS::EC2::VPC::Id
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
+  ECSAMI:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
+  InstanceType:
+    Type: String
+    Default: t2.micro # t3.medium
 
 Resources:
   LoadBalancerSecurityGroup:
@@ -37,7 +43,7 @@ Resources:
         - Key: routing.http2.enabled
           Value: "false"
         - Key: deletion_protection.enabled
-          Value: "false"
+          Value: "true"
         - Key: idle_timeout.timeout_seconds
           Value: "60"
         - Key: access_logs.s3.enabled
@@ -47,6 +53,92 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Join ["-", [!Ref ProjectName, cluster]]
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: ECSCluster
+    Properties:
+      VPCZoneIdentifier: !Ref SubnetIds
+      LaunchConfigurationName: !Ref ECSInstanceLaunchConfiguration
+      MinSize: "1"
+      MaxSize: "3"
+      DesiredCapacity: "1"
+      MetricsCollection:
+        - Granularity: 1Minute
+    CreationPolicy:
+      ResourceSignal:
+        Count: "1"
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+
+  ECSAverageCPUPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref ECSAutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 50
+
+  ECSInstanceLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref ECSAMI
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref ECSInstanceProfile
+      InstanceMonitoring: false
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum update -y
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSAutoScalingGroup
+      AssociatePublicIpAddress: true
+      SecurityGroups:
+        - !Ref ECSInstanceSecurityGroup
+      KeyName: aossas
+
+  ECSInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "SecurityGroup for ${ProjectName} ECS Instance"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref ProjectName, sg]]
+
+  ECSInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ECSInstanceRole
+
+  ECSInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
 
 Outputs:
   LoadBalancer:
