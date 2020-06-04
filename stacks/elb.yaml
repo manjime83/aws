@@ -12,7 +12,7 @@ Parameters:
     Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
   InstanceType:
     Type: String
-    Default: t3.small
+    Default: t3a.small
 
 Resources:
   LoadBalancerSecurityGroup:

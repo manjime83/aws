@@ -43,10 +43,10 @@ Resources:
                 },
                 "selection": {
                   "countType": "imageCountMoreThan",
-                  "countNumber": 10,
+                  "countNumber": 5,
                   "tagStatus": "untagged"
                 },
-                "description": "Keep only 10 untagged image, expire all others",
+                "description": "Keep only 5 untagged image, expire all others",
                 "rulePriority": 1
               }
             ]
@@ -66,10 +66,10 @@ Resources:
                 },
                 "selection": {
                   "countType": "imageCountMoreThan",
-                  "countNumber": 10,
+                  "countNumber": 5,
                   "tagStatus": "untagged"
                 },
-                "description": "Keep only 10 untagged image, expire all others",
+                "description": "Keep only 5 untagged image, expire all others",
                 "rulePriority": 1
               }
             ]
@@ -89,10 +89,10 @@ Resources:
                 },
                 "selection": {
                   "countType": "imageCountMoreThan",
-                  "countNumber": 10,
+                  "countNumber": 5,
                   "tagStatus": "untagged"
                 },
-                "description": "Keep only 10 untagged image, expire all others",
+                "description": "Keep only 5 untagged image, expire all others",
                 "rulePriority": 1
               }
             ]
@@ -169,12 +169,10 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       NetworkMode: bridge
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
-      # Cpu: "1024"
-      # Memory: "977"
       ContainerDefinitions:
         - Name: !Join ["-", [!Ref ProjectName, api]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${APIRepository}:latest"
-          MemoryReservation: 448
+          MemoryReservation: 384
           PortMappings:
             - ContainerPort: 8080
           Environment:
@@ -188,7 +186,7 @@ Resources:
               awslogs-stream-prefix: api
         - Name: !Join ["-", [!Ref ProjectName, ecommerce]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcommerceRepository}:latest"
-          MemoryReservation: 192
+          MemoryReservation: 128
           DependsOn:
             - ContainerName: !Join ["-", [!Ref ProjectName, api]]
               Condition: START
@@ -205,7 +203,7 @@ Resources:
               awslogs-stream-prefix: ecommerce
         - Name: !Join ["-", [!Ref ProjectName, tcc]]
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${TccRepository}:latest"
-          MemoryReservation: 192
+          MemoryReservation: 128
           DependsOn:
             - ContainerName: !Join ["-", [!Ref ProjectName, api]]
               Condition: START
@@ -275,7 +273,7 @@ Resources:
   DefaultListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Condition: IsProd
-    Properties: 
+    Properties:
       LoadBalancerArn: !Ref LoadBalancer
       Protocol: HTTPS
       Port: 443
@@ -290,13 +288,13 @@ Resources:
   ListenerCertificate:
     Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
     Condition: IsTest
-    Properties: 
+    Properties:
       ListenerArn:
         Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
       Certificates:
         - CertificateArn: !Ref SSLCertificate
 
-  APIListenerRule: 
+  APIListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       Actions:
@@ -313,7 +311,7 @@ Resources:
         - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
       Priority: !If [IsProd, 10, 20]
 
-  APITempListenerRule: 
+  APITempListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Condition: IsProd
     Properties:
@@ -330,8 +328,8 @@ Resources:
         - !Ref DefaultListener
         - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
       Priority: !If [IsProd, 13, 23]
- 
-  EcommerceListenerRule: 
+
+  EcommerceListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       Actions:
@@ -348,7 +346,7 @@ Resources:
         - Fn::ImportValue: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
       Priority: !If [IsProd, 11, 21]
 
-  TccListenerRule: 
+  TccListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       Actions:
@@ -390,7 +388,7 @@ Resources:
 
   Service:
     Type: AWS::ECS::Service
-    DependsOn: 
+    DependsOn:
       - APIListenerRule
       - EcommerceListenerRule
       - TccListenerRule
@@ -487,5 +485,5 @@ Outputs:
   DefaultListener:
     Condition: IsProd
     Value: !Ref DefaultListener
-    Export: 
+    Export:
       Name: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
