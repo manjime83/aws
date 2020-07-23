@@ -487,3 +487,7 @@ Outputs:
     Value: !Ref DefaultListener
     Export:
       Name: !Join ["-", [!Ref ProjectName, loadbalancer, listener]]
+  LogGroup:
+    Value: !Ref LogGroup
+    Export:
+      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, log, group]]

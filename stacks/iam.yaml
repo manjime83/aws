@@ -11,7 +11,7 @@ Resources:
     Type: AWS::IAM::Group
     Properties:
       GroupName: !Join ["-", [!Ref ProjectName, !Ref EnvType, operators]]
-      ManagedPolicyArns: 
+      ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
         - arn:aws:iam::aws:policy/CloudWatchEventsReadOnlyAccess
 
@@ -21,7 +21,9 @@ Resources:
       UserName: !Join ["-", [!Ref ProjectName, !Ref EnvType]]
       Groups:
         - !Ref OperatorsGroup
-        
+
 Outputs:
   OperatorsGroup:
     Value: !Ref OperatorsGroup
+    Export:
+      Name: !Join ["-", [!Ref ProjectName, !Ref EnvType, operators]]
